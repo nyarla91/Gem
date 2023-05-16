@@ -1,0 +1,8 @@
+,Regular,Attack,Stagger,Stun,Cast,Block,Dodge
+Regular,F,-,-,-,-,-,-
+Attack,-,F,-,-,F,-,-
+Stagger,-,-,F,-,-,F,F
+Stun,-,F,F,F,F,F,F
+Cast,-,F,-,-,F,-,-
+Block,-,F,-,-,F,F,-
+Dodge,-,F,F,-,F,F,F
