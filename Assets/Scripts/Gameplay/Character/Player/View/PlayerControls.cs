@@ -3,9 +3,8 @@ using Extentions;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Zenject;
-using static Extentions.Pause.Pause;
 
-namespace Gameplay.Character.Player
+namespace Gameplay.Character.Player.View
 {
     public class PlayerControls : MonoBehaviour
     {
@@ -16,7 +15,7 @@ namespace Gameplay.Character.Player
         public event Action DodgePressed;
         public event Action PrimaryAttackPressed;
 
-        public Vector2 GetMoveVector() => _actions.Player.Move.ReadValue<Vector2>();
+        public Vector2 MoveVector => _actions.Player.Move.ReadValue<Vector2>();
         
         private void Awake()
         {

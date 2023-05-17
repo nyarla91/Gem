@@ -62,6 +62,7 @@ namespace Gameplay.Character.Player
         {
             Vector3 direction = WorldMoveInput.normalized;
             
+            Transform.rotation = Quaternion.LookRotation(direction);
             for (float i = 0; i < 1; i += Time.fixedDeltaTime / _dodgeDuration)
             {
                 Movable.Velocity = _dodgeSpeedCurve.Evaluate(i) * _dodgeSpeedScale * direction;
@@ -101,6 +102,8 @@ namespace Gameplay.Character.Player
             targetVelocity *= _maxSpeed;
             _velocity = Vector3.MoveTowards(_velocity, targetVelocity, _maxSpeed * _acceleration * deltaTime);
             Movable.Velocity = _velocity;
+            if (_velocity.magnitude > 0)
+                Transform.rotation = Quaternion.LookRotation(_velocity);
         }
     }
 }

@@ -104,7 +104,7 @@ namespace Gameplay.Character
                 if (currentLine[x][0] == 'F')
                     forbiddenTransitions.Add(stateNames[x - 1]);
             }
-            State state = new State(currentLine[0], forbiddenTransitions);
+            State state = new State(y, currentLine[0], forbiddenTransitions);
 
             return state;
         }
@@ -119,8 +119,11 @@ namespace Gameplay.Character
     [Serializable]
     public class State
     {
+        [SerializeField] private int _id;
         [SerializeField] private string _name;
         [SerializeField] private List<string> _forbiddenTransitions;
+
+        public int ID => _id;
 
         public string Name
         {
@@ -131,8 +134,9 @@ namespace Gameplay.Character
         public Action Enter;
         public Action Exit;
 
-        public State(string name, List<string> frobiddenTransitions)
+        public State(int id, string name, List<string> frobiddenTransitions)
         {
+            _id = id;
             Name = name;
             _forbiddenTransitions = frobiddenTransitions;
         }
