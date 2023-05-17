@@ -12,6 +12,7 @@ namespace Gameplay.Character.Player.View
         
         public event Func<float> MovementSpeed;
         public event Func<int> State;
+        public event Func<int> Attack;
 
         private void Start()
         {
@@ -19,12 +20,15 @@ namespace Gameplay.Character.Player.View
                 throw new UnassignedReferenceException("State is not binded");
             if (MovementSpeed == null)
                 throw new UnassignedReferenceException("MovementSpeed is not binded");
+            if (Attack == null)
+                throw new UnassignedReferenceException("AttackAnimation is not binded");
         }
 
         private void FixedUpdate()
         {
-            Animator.SetInteger("State", State.Invoke());
-            Animator.SetFloat("MovementSpeed", MovementSpeed.Invoke());
+            Animator.SetInteger("State", State?.Invoke() ?? 0);
+            Animator.SetFloat("MovementSpeed", MovementSpeed?.Invoke() ?? 0);
+            Animator.SetInteger("Attack", Attack?.Invoke() ?? 0);
         }
     }
 }

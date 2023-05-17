@@ -27,6 +27,7 @@ namespace Gameplay.Character.Player
             _controls.PrimaryAttackPressed += MeleeAttack.TryAttack;
             _animation.State += () => StateMachine.CurrentState.ID;
             _animation.MovementSpeed += () => Movable.Velocity.magnitude;
+            _animation.Attack += () => MeleeAttack.CurrentMove?.Animation ?? 0;
         }
     }
 }

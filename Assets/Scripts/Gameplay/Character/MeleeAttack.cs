@@ -11,7 +11,7 @@ namespace Gameplay.Character
 {
     [RequireComponent(typeof(StateMachine))]
     [RequireComponent(typeof(Movable))]
-    public class MeleeAttack : MonoBehaviour
+    public class MeleeAttack : Transformable
     {
         public const string AttackState = "Attack";
         
@@ -19,7 +19,6 @@ namespace Gameplay.Character
         [SerializeField] private float _comboDiscardTime;
         [SerializeField] private List<MeleeAttackMove> _combo;
 
-        private Vector3 _direction;
         private int _attackPhase;
         private Timer _comboCooldown;
         private InputBuffer _attackBuffer;
@@ -28,6 +27,8 @@ namespace Gameplay.Character
         private PlayerMovement _movement;
 
         private bool ComboAvailable => _attackPhase < _combo.Count;
+        
+        public MeleeAttackMove CurrentMove { get; private set; }
 
         public PlayerMovement Movement => _movement ??= GetComponent<PlayerMovement>();
         private StateMachine _stateMachine;
@@ -56,15 +57,39 @@ namespace Gameplay.Character
                 yield break;
             }
             
-            MeleeAttackMove move = _combo[_attackPhase];
-
+            CurrentMove = _combo[_attackPhase];
             _comboCooldown.Stop();
-            yield return new PausableWaitForSeconds(this, Pause, move.SwingTime);
-            Vector3 direction = _direction;
-            Movable.Velocity = direction * move.PushForce / 0.1f;
-            yield return new PausableWaitForSeconds(this, Pause, 0.1f);
+
+            for (int frame = 0; frame < CurrentMove.SwingFrames; frame++)
+            {
+                if (Movement.WorldMoveInput.magnitude > 0)
+                {
+                    Transform.rotation = Quaternion.LookRotation(Movement.WorldMoveInput);
+                }
+                if (Pause.IsPaused)
+                    yield return new WaitUntil(() => Pause.IsUnpaused);
+                yield return new WaitForFixedUpdate();
+            }
+
+            Vector3 direction = Transform.forward;
+            
+            for (int frame = 0; frame < CurrentMove.AttackFrames; frame++)
+            {
+                Movable.Velocity = CurrentMove.EvaluateThrustForPhase(frame / CurrentMove.AttackFrames) * direction;
+                if (Pause.IsPaused)
+                    yield return new WaitUntil(() => Pause.IsUnpaused);
+                yield return new WaitForFixedUpdate();
+            }
+            
             Movable.Velocity = Vector3.zero;
-            yield return new PausableWaitForSeconds(this, Pause, move.RestoreTime);
+
+            for (int frame = 0; frame < CurrentMove.RecoverFrames; frame++)
+            {
+                if (Pause.IsPaused)
+                    yield return new WaitUntil(() => Pause.IsUnpaused);
+                yield return new WaitForFixedUpdate();
+            }
+            
             StateMachine.TryExitState(AttackState);
         }
 
@@ -73,6 +98,7 @@ namespace Gameplay.Character
             _attackPhase++;
             _comboCooldown.Restart();
             _attackCoroutine?.Stop(this);
+            CurrentMove = null;
         }
 
         private void Start()
@@ -86,25 +112,29 @@ namespace Gameplay.Character
             _comboCooldown = new Timer(this, _comboDiscardTime, Pause);
             _comboCooldown.Expired += () => _attackPhase = 0;
         }
-
-        private void FixedUpdate()
-        {
-            if (Movement.WorldMoveInput.magnitude > 0)
-                _direction = Movement.WorldMoveInput.normalized;
-        }
     }
 
     [Serializable]
     public class MeleeAttackMove
     {
         [SerializeField] private OverlapTrigger _attackArea;
-        [SerializeField] private float _swingTime;
-        [SerializeField] private float _pushForce;
-        [SerializeField] private float _restoreTime;
+        [SerializeField] private int _swingFrames;
+        [SerializeField] private int _attackFrames;
+        [SerializeField] private int _recoverFrames;
+        [SerializeField] private AnimationCurve _thrustOverAttack;
+        [SerializeField] private float _thrustScale;
+        [SerializeField] private int _animation;
 
         public OverlapTrigger AttackArea => _attackArea;
-        public float SwingTime => _swingTime;
-        public float PushForce => _pushForce;
-        public float RestoreTime => _restoreTime;
+        public float SwingFrames => _swingFrames;
+        public float AttackFrames => _attackFrames;
+        public float RecoverFrames => _recoverFrames;
+        public int Animation => _animation;
+
+        public float EvaluateThrustForPhase(float phase)
+        {
+            phase = Mathf.Clamp(phase, 0, 1);
+            return _thrustOverAttack.Evaluate(phase) * _thrustScale;
+        }
     }
 }

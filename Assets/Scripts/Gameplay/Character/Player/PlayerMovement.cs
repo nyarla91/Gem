@@ -18,7 +18,7 @@ namespace Gameplay.Character.Player
         [SerializeField] private float _dodgeBufferWindow;
         [SerializeField] private AnimationCurve _dodgeSpeedCurve;
         [SerializeField] private float _dodgeSpeedScale;
-        [SerializeField] private float _dodgeDuration;
+        [SerializeField] private int _dodgeFrames;
         [SerializeField] private float _dodgeCooldown;
 
         private Vector3 _velocity;
@@ -63,10 +63,11 @@ namespace Gameplay.Character.Player
             Vector3 direction = WorldMoveInput.normalized;
             
             Transform.rotation = Quaternion.LookRotation(direction);
-            for (float i = 0; i < 1; i += Time.fixedDeltaTime / _dodgeDuration)
+            for (float frame = 0; frame < _dodgeFrames; frame++)
             {
-                Movable.Velocity = _dodgeSpeedCurve.Evaluate(i) * _dodgeSpeedScale * direction;
-                yield return new WaitUntil(() => Pause.IsUnpaused);
+                Movable.Velocity = _dodgeSpeedCurve.Evaluate(frame / _dodgeFrames) * _dodgeSpeedScale * direction;
+                if (Pause.IsPaused)
+                    yield return new WaitUntil(() => Pause.IsUnpaused);
                 yield return new WaitForFixedUpdate();
             }
             StateMachine.TryExitState(DodgeState);
