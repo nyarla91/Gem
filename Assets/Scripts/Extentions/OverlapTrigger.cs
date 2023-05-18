@@ -8,6 +8,9 @@ namespace Extentions
     public class OverlapTrigger : Transformable
     {
         [SerializeField] private List<Collider> _colliders = new List<Collider>();
+
+        public event Action<Collider> Enter;
+        public event Action<Collider> Exit;
         
         public Collider[] Content => _colliders.Where(collider => collider is not null).ToArray();
 
@@ -18,14 +21,18 @@ namespace Extentions
 
         private void OnTriggerEnter(Collider other)
         {
-            if ( ! _colliders.Contains(other))
-                _colliders.Add(other);
+            if (_colliders.Contains(other))
+                return;
+            _colliders.Add(other);
+            Enter?.Invoke(other);
         }
 
         private void OnTriggerExit(Collider other)
         {
-            if (_colliders.Contains(other))
-                _colliders.Remove(other);
+            if (!_colliders.Contains(other))
+                return;
+            _colliders.Remove(other);
+            Exit?.Invoke(other);
         }
     }
 }

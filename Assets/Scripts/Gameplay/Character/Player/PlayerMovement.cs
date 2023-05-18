@@ -65,7 +65,7 @@ namespace Gameplay.Character.Player
             Transform.rotation = Quaternion.LookRotation(direction);
             for (float frame = 0; frame < _dodgeFrames; frame++)
             {
-                Movable.Velocity = _dodgeSpeedCurve.Evaluate(frame / _dodgeFrames) * _dodgeSpeedScale * direction;
+                Movable.VoluntaryVelocity = _dodgeSpeedCurve.Evaluate(frame / _dodgeFrames) * _dodgeSpeedScale * direction;
                 if (Pause.IsPaused)
                     yield return new WaitUntil(() => Pause.IsUnpaused);
                 yield return new WaitForFixedUpdate();
@@ -102,7 +102,7 @@ namespace Gameplay.Character.Player
             Vector3 targetVelocity = WorldMoveInput;
             targetVelocity *= _maxSpeed;
             _velocity = Vector3.MoveTowards(_velocity, targetVelocity, _maxSpeed * _acceleration * deltaTime);
-            Movable.Velocity = _velocity;
+            Movable.VoluntaryVelocity = _velocity;
             if (_velocity.magnitude > 0)
                 Transform.rotation = Quaternion.LookRotation(_velocity);
         }

@@ -50,7 +50,7 @@ namespace Gameplay.Character
 
         private IEnumerator Attack()
         {
-            Movable.Velocity = Vector3.zero;
+            Movable.VoluntaryVelocity = Vector3.zero;
             if (Pause.IsPaused || _attackPhase < 0 || ! ComboAvailable)
             {
                 StateMachine.TryEnterState(AttackState);
@@ -60,7 +60,7 @@ namespace Gameplay.Character
             CurrentMove = _combo[_attackPhase];
             _comboCooldown.Stop();
 
-            for (int frame = 0; frame < CurrentMove.SwingFrames; frame++)
+            for (int frame = 0; frame < CurrentMove.SwingFrames; frame++) 
             {
                 if (Movement.WorldMoveInput.magnitude > 0)
                 {
@@ -72,16 +72,20 @@ namespace Gameplay.Character
             }
 
             Vector3 direction = Transform.forward;
+            Movable.VoluntaryVelocity = CurrentMove.EvaluateThrustForPhase(0) * direction;
+            CurrentMove.AttackArea.Content.Foreach(TryHitCollider);
+            CurrentMove.AttackArea.Enter += TryHitCollider;
             
             for (int frame = 0; frame < CurrentMove.AttackFrames; frame++)
             {
-                Movable.Velocity = CurrentMove.EvaluateThrustForPhase(frame / CurrentMove.AttackFrames) * direction;
+                Movable.VoluntaryVelocity = CurrentMove.EvaluateThrustForPhase(frame / CurrentMove.AttackFrames) * direction;
                 if (Pause.IsPaused)
                     yield return new WaitUntil(() => Pause.IsUnpaused);
                 yield return new WaitForFixedUpdate();
             }
             
-            Movable.Velocity = Vector3.zero;
+            CurrentMove.AttackArea.Enter -= TryHitCollider;
+            Movable.VoluntaryVelocity = Vector3.zero;
 
             for (int frame = 0; frame < CurrentMove.RecoverFrames; frame++)
             {
@@ -91,6 +95,15 @@ namespace Gameplay.Character
             }
             
             StateMachine.TryExitState(AttackState);
+        }
+
+        private void TryHitCollider(Collider target)
+        {
+            if (CurrentMove == null || ! target.TryGetComponent(out Hitbox hitbx))
+                return;
+            Vector3 directionFrom = -Movable.VoluntaryVelocity;
+            float force = Movable.VoluntaryVelocity.magnitude;
+            hitbx.TakeHit(new Hit(1, directionFrom, force));
         }
 
         private void InterruptAttack()

@@ -7,13 +7,21 @@ namespace Gameplay.Character
     [RequireComponent(typeof(Rigidbody))]
     public class Movable : LazyGetComponent<Rigidbody>
     {
-        public Vector3 Velocity { get; set; }
+        private const float ForceFadeMultiplier = 0.9f;
+        private const float ForceVelocityThreshold = 0.5f;
+        
+        public Vector3 VoluntaryVelocity { get; set; }
+        public Vector3 ForceVelocity { get; set; }
 
         [Inject] private IPauseInfo Pause { get; set; }
-        
+
         private void FixedUpdate()
         {
-            Lazy.velocity = Pause.IsUnpaused ? Velocity : Vector3.zero;
+            print($"{gameObject} {ForceVelocity}");
+            Lazy.velocity = Pause.IsUnpaused
+                ? (ForceVelocity.magnitude >= ForceVelocityThreshold ? ForceVelocity : VoluntaryVelocity)
+                : Vector3.zero;
+            ForceVelocity *= ForceFadeMultiplier;
         }
     }
 }
