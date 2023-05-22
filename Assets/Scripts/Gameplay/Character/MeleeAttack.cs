@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
 using Extentions;
-using Gameplay.Character.Player;
 using Input;
 using UnityEngine;
 using Zenject;
 
 namespace Gameplay.Character
 {
+    [RequireComponent(typeof(Sight))]
     [RequireComponent(typeof(StateMachine))]
     [RequireComponent(typeof(Movable))]
     public class MeleeAttack : Transformable
@@ -17,55 +16,63 @@ namespace Gameplay.Character
         
         [SerializeField] private float _bufferWindow;
         [SerializeField] private float _comboDiscardTime;
-        [SerializeField] private List<MeleeAttackMove> _combo;
+        [SerializeField] private MeleeCombo[] _combo;
 
+        private int _currentCombo;
         private int _attackPhase;
         private Timer _comboCooldown;
-        private InputBuffer _attackBuffer;
+        private InputBuffer[] _attackBuffers;
         private Coroutine _attackCoroutine;
 
-        private PlayerMovement _movement;
-
-        private bool ComboAvailable => _attackPhase < _combo.Count;
-        
+        public AttackStep AttackStep { get; private set; } = AttackStep.None;
         public MeleeAttackMove CurrentMove { get; private set; }
 
-        public PlayerMovement Movement => _movement ??= GetComponent<PlayerMovement>();
-        private StateMachine _stateMachine;
-        public StateMachine StateMachine => _stateMachine ??= GetComponent<StateMachine>();
+        private Sight _sight;
         private Movable _movable;
-        public Movable Movable => _movable ??= GetComponent<Movable>();
+        private StateMachine _stateMachine;
+
+        private Sight Sight => _sight ??= GetComponent<Sight>();
+        private Movable Movable => _movable ??= GetComponent<Movable>();
+        private StateMachine StateMachine => _stateMachine ??= GetComponent<StateMachine>();
+
+        public event Func<Vector3> SwingAttackDirection; 
         
         [Inject] private IPauseInfo Pause { get; set; }
         
-        public void TryAttack()
+        public void TryAttack(int combo)
         {
-            _attackBuffer.SendInput();
+            if (combo < 0 || combo >= _combo.Length)
+                throw new IndexOutOfRangeException($"{gameObject} has no {combo} combo");
+            _attackBuffers[combo].SendInput();
         }
 
-        private void StartAttack()
+        private void StartAttack(int combo)
         {
-            _attackCoroutine = StartCoroutine(Attack());
+            _attackCoroutine = StartCoroutine(Attack(combo));
         }
 
-        private IEnumerator Attack()
+        private IEnumerator Attack(int combo)
         {
             Movable.VoluntaryVelocity = Vector3.zero;
-            if (Pause.IsPaused || _attackPhase < 0 || ! ComboAvailable)
+            if (Pause.IsPaused || _attackPhase < 0 || ! IsNextComboMoveAvailable(combo))
             {
                 StateMachine.TryEnterState(AttackState);
                 yield break;
             }
-            
-            CurrentMove = _combo[_attackPhase];
+
+            if (_currentCombo != combo)
+            {
+                _attackPhase = 0;
+                _currentCombo = combo;
+            }
+            CurrentMove = _combo[_currentCombo].GetMove(_attackPhase);
             _comboCooldown.Stop();
 
+            AttackStep = AttackStep.Swing;
             for (int frame = 0; frame < CurrentMove.SwingFrames; frame++) 
             {
-                if (Movement.WorldMoveInput.magnitude > 0)
-                {
-                    Transform.rotation = Quaternion.LookRotation(Movement.WorldMoveInput);
-                }
+                if (SwingAttackDirection != null)
+                    Sight.RotateTowardsDirection(SwingAttackDirection.Invoke(), true);
                 if (Pause.IsPaused)
                     yield return new WaitUntil(() => Pause.IsUnpaused);
                 yield return new WaitForFixedUpdate();
@@ -76,6 +83,7 @@ namespace Gameplay.Character
             CurrentMove.AttackArea.Content.Foreach(TryHitCollider);
             CurrentMove.AttackArea.Enter += TryHitCollider;
             
+            AttackStep = AttackStep.Attack;
             for (int frame = 0; frame < CurrentMove.AttackFrames; frame++)
             {
                 Movable.VoluntaryVelocity = CurrentMove.EvaluateThrustForPhase(frame / CurrentMove.AttackFrames) * direction;
@@ -87,6 +95,7 @@ namespace Gameplay.Character
             CurrentMove.AttackArea.Enter -= TryHitCollider;
             Movable.VoluntaryVelocity = Vector3.zero;
 
+            AttackStep = AttackStep.Recovery;
             for (int frame = 0; frame < CurrentMove.RecoverFrames; frame++)
             {
                 if (Pause.IsPaused)
@@ -95,6 +104,12 @@ namespace Gameplay.Character
             }
             
             StateMachine.TryExitState(AttackState);
+        }
+        
+        private bool IsNextComboMoveAvailable(int combo)
+        {
+            print($"{combo} {_currentCombo} {_attackPhase} {_currentCombo != combo || _attackPhase < _combo[_currentCombo].Phases}");
+            return _currentCombo != combo || _attackPhase < _combo[_currentCombo].Phases;
         }
 
         private void TryHitCollider(Collider target)
@@ -108,6 +123,7 @@ namespace Gameplay.Character
 
         private void InterruptAttack()
         {
+            AttackStep = AttackStep.None;
             _attackPhase++;
             _comboCooldown.Restart();
             _attackCoroutine?.Stop(this);
@@ -117,16 +133,44 @@ namespace Gameplay.Character
         private void Start()
         {
             StateMachine.GetState(AttackState).Exit += InterruptAttack;
-            
-            _attackBuffer = new InputBuffer(this, _bufferWindow);
-            _attackBuffer.Performed += StartAttack;
-            _attackBuffer.PerformCondition += () => ComboAvailable && StateMachine.TryEnterState(AttackState);
+
+            _attackBuffers = new InputBuffer[_combo.Length];
+            for (int i = 0; i < _combo.Length; i++)
+            {
+                int combo = i;
+                _attackBuffers[i] = new InputBuffer(this, _bufferWindow);
+                _attackBuffers[i].Performed += () => StartAttack(combo);
+                _attackBuffers[i].PerformCondition += () => IsNextComboMoveAvailable(combo) && StateMachine.TryEnterState(AttackState);
+            }
 
             _comboCooldown = new Timer(this, _comboDiscardTime, Pause);
             _comboCooldown.Expired += () => _attackPhase = 0;
         }
     }
 
+    public enum AttackStep
+    {
+        None,
+        Swing,
+        Attack,
+        Recovery,
+    }
+
+    [Serializable]
+    public class MeleeCombo
+    {
+        [SerializeField] private MeleeAttackMove[] _moves;
+
+        public int Phases => _moves.Length;
+        
+        public MeleeAttackMove GetMove(int phase)
+        {
+            if (phase < 0 || phase >= _moves.Length)
+                throw new IndexOutOfRangeException($"{this} melee combo has no phase {phase}");
+            return _moves[phase];
+        }
+    }
+    
     [Serializable]
     public class MeleeAttackMove
     {

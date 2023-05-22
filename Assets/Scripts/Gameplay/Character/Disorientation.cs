@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections;
+using Extentions;
 using UnityEngine;
+using Zenject;
 
 namespace Gameplay.Character
 {
@@ -9,27 +11,39 @@ namespace Gameplay.Character
     {
         public const string StaggerState = "Stagger";
         public const string StunState = "Stun";
-        private const int StaggerFtames = 15;
+        public const float StaggerDuration = 0.3f;
 
-        private Coroutine _exitCoroutine;
+        private Timer _disorientationExit;
 
         private StateMachine _stateMachine;
         public StateMachine StateMachine => _stateMachine ??= GetComponent<StateMachine>();
         
+        [Inject] private IPauseInfo Pause { get; set; }
+
         public void Stagger()
         {
             if (StateMachine.TryEnterState(StaggerState))
-                _exitCoroutine = StartCoroutine(ExitDisorientation(StaggerState));
+            {
+                _disorientationExit.Length = StaggerDuration;
+                _disorientationExit.Restart();
+            }
         }
 
-        private IEnumerator ExitDisorientation(string state)
+        private void InterruptExit()
         {
-            yield break;
+            _disorientationExit.Stop();
         }
 
         private void Awake()
         {
-            
+            _disorientationExit = new Timer(this, StaggerDuration, Pause);
+            _disorientationExit.Expired += () =>
+            {
+                StateMachine.TryExitState(StaggerState);
+                StateMachine.TryExitState(StunState);
+            };
+            StateMachine.GetState(StaggerState).Exit += InterruptExit;
+            StateMachine.GetState(StunState).Exit += InterruptExit;
         }
     }
 }

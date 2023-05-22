@@ -77,6 +77,12 @@ namespace Gameplay.Character
                 GeneraleStateList();
         }
 
+        private void Start()
+        {
+            CurrentState = _states[0];
+            print(CurrentState);
+        }
+
         private void GeneraleStateList()
         {
             _states = new List<State>();
@@ -91,8 +97,6 @@ namespace Gameplay.Character
             }
             
             _generatedMachines.Add(_stateTable, _states);
-            
-            CurrentState = _states[0];
         }
 
         private State GenerateState(string[] lines, int y, List<string> stateNames)
@@ -112,15 +116,15 @@ namespace Gameplay.Character
         private void CheckStateForExistance(string stateName)
         {
             if (!_states.Any(state => state.Name.Equals(stateName)))
-                throw new Exception($"{gameObject.name} has no {stateName} state");
+                throw new Exception($"{_stateTable} has no {stateName} state");
         }
     }
 
     [Serializable]
     public class State
     {
-        [SerializeField] private int _id;
         [SerializeField] private string _name;
+        [SerializeField] private int _id;
         [SerializeField] private List<string> _forbiddenTransitions;
 
         public int ID => _id;

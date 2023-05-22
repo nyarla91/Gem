@@ -7,13 +7,17 @@ namespace Gameplay.Character
     {
         private VitalsPool _vitalsPool;
         private Movable _movable;
-        public VitalsPool VitalsPool => _vitalsPool ??= GetComponent<VitalsPool>();
+        private Disorientation _disorientation;
 
-        public Movable Movable => _movable ??= GetComponent<Movable>();
+        private VitalsPool VitalsPool => _vitalsPool ??= GetComponent<VitalsPool>();
+        private Movable Movable => _movable ??= GetComponent<Movable>();
+
+        private Disorientation Disorientation => _disorientation ??= GetComponent<Disorientation>();
         
         public void TakeHit(Hit hit)
         {
             VitalsPool?.TakeDamage(hit.Damage);
+            Disorientation?.Stagger();
             if (Movable != null) 
                 Movable.ForceVelocity = hit.PushForce * -1 * hit.DirectionFrom;
         }

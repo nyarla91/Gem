@@ -8,6 +8,8 @@ namespace Gameplay.Character.Player.View
 {
     public class PlayerControls : MonoBehaviour
     {
+        [SerializeField] [Range(0, 1)] private float _moveDeadzone;
+        
         private GameplayActions _actions;
 
         [Inject] private IPauseInfo Pause { get; set; }
@@ -15,8 +17,15 @@ namespace Gameplay.Character.Player.View
         public event Action DodgePressed;
         public event Action PrimaryAttackPressed;
 
-        public Vector2 MoveVector => _actions.Player.Move.ReadValue<Vector2>();
-        
+        public Vector2 MoveVector
+        {
+            get
+            {
+                Vector2 raw = _actions.Player.Move.ReadValue<Vector2>();
+                return raw.magnitude >= _moveDeadzone ? raw : Vector2.zero;
+            }
+        }
+
         private void Awake()
         {
             _actions = new GameplayActions();

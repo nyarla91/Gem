@@ -3,7 +3,7 @@ using Extentions;
 using Extentions.Pause;
 using Input;
 using UnityEngine;
-using Zenject;
+using MonoInstaller = Extentions.MonoInstaller;
 
 namespace Infrastructure
 {
@@ -19,15 +19,9 @@ namespace Infrastructure
             BindFromPrefab<SceneLoader>(_sceneLoaderPrefab);
             BindFromPrefab<DeviceWatcher>(_deviceWatcherPrefab);
             BindFromPrefab<Settings.Settings>(_settingsPrefab);
+            
             GameObject pause = BindFromPrefab<IPauseChanger>(_pausePrefab);
-            Container.Bind<IPauseInfo>().FromInstance(pause.GetComponent<Pause>());
-        }
-
-        private GameObject BindFromPrefab<T>(GameObject prefab)
-        {
-            GameObject instance = Container.InstantiatePrefab(prefab, transform);
-            Container.Bind<T>().FromInstance(instance.GetComponent<T>()).AsSingle();
-            return instance;
+            BindFromInstance<IPauseInfo>(pause);
         }
     }
 }

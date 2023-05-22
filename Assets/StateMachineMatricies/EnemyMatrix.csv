@@ -1,0 +1,6 @@
+,Regular,Attack,Stagger,Stun,Cast
+Regular,F,-,-,-,-
+Attack,-,F,F,-,F
+Stagger,-,-,F,-,-
+Stun,-,F,F,F,F
+Cast,-,F,-,-,F

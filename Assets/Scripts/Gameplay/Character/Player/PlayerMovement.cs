@@ -7,29 +7,30 @@ using Zenject;
 
 namespace Gameplay.Character.Player
 {
+    [RequireComponent(typeof(Sight))]
     [RequireComponent(typeof(Movable))]
     [RequireComponent(typeof(StateMachine))]
     public class PlayerMovement : Transformable
     {
         public const string DodgeState = "Dodge";
         
-        [SerializeField] private float _maxSpeed;
-        [SerializeField] private float _acceleration;
         [SerializeField] private float _dodgeBufferWindow;
         [SerializeField] private AnimationCurve _dodgeSpeedCurve;
         [SerializeField] private float _dodgeSpeedScale;
         [SerializeField] private int _dodgeFrames;
         [SerializeField] private float _dodgeCooldown;
 
-        private Vector3 _velocity;
         private InputBuffer _dodgeBuffer;
         private Timer _dodgeRestoration;
         private Coroutine _dodgeCoroutine;
 
+        private Sight _sight;
         private Movable _movable;
-        public Movable Movable => _movable ??= GetComponent<Movable>();
         private StateMachine _stateMachine;
-        public StateMachine StateMachine => _stateMachine ??= GetComponent<StateMachine>();
+
+        private Sight Sight => _sight ??= GetComponent<Sight>();
+        private StateMachine StateMachine => _stateMachine ??= GetComponent<StateMachine>();
+        private Movable Movable => _movable ??= GetComponent<Movable>();
         
         public event Func<Vector2> MoveInput;
 
@@ -62,7 +63,8 @@ namespace Gameplay.Character.Player
         {
             Vector3 direction = WorldMoveInput.normalized;
             
-            Transform.rotation = Quaternion.LookRotation(direction);
+            Sight.RotateTowardsDirection(direction, true);
+            
             for (float frame = 0; frame < _dodgeFrames; frame++)
             {
                 Movable.VoluntaryVelocity = _dodgeSpeedCurve.Evaluate(frame / _dodgeFrames) * _dodgeSpeedScale * direction;
@@ -92,19 +94,15 @@ namespace Gameplay.Character.Player
 
         private void FixedUpdate()
         {
-            Move(Time.fixedDeltaTime);
+            Move();
         }
 
-        private void Move( float deltaTime)
+        private void Move()
         {
             if (Pause.IsPaused || StateMachine.IsCurrentStateNoneOf(StateMachine.Regular))
                 return;
-            Vector3 targetVelocity = WorldMoveInput;
-            targetVelocity *= _maxSpeed;
-            _velocity = Vector3.MoveTowards(_velocity, targetVelocity, _maxSpeed * _acceleration * deltaTime);
-            Movable.VoluntaryVelocity = _velocity;
-            if (_velocity.magnitude > 0)
-                Transform.rotation = Quaternion.LookRotation(_velocity);
+            Movable.Walk(WorldMoveInput);
+            Sight.RotateTowardsDirection(WorldMoveInput);
         }
     }
 }
